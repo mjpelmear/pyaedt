@@ -477,6 +477,7 @@ class EDBLayer(object):
         self._upper_elevation = None
         self._top_bottom_association = None
         self._id = None
+        self._old_name = None
         self._edb = app._edb
         self._active_layout = app._active_layout
         self._pedblayers = app
@@ -511,6 +512,15 @@ class EDBLayer(object):
         if not self._name:
             self._name = self._layer.GetName()
         return self._name
+
+    @name.setter
+    def name(self, value):
+        self._old_name = self._name
+        if not type(value) is str:
+            self._name = str(value)
+        else:
+            self._name = value
+        self.update_layers()
 
     @property
     def id(self):
@@ -931,7 +941,7 @@ class EDBLayer(object):
                 continue
             layerName = lyr.GetName()
 
-            if layerName == self.name:
+            if layerName == self.name or layerName == self._old_name:
                 newLayer = lyr.Clone()
                 newLayer = self.update_layer_vals(
                     self._name,
