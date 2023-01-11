@@ -52,7 +52,6 @@ jobs:
           pip install .
           pip install -r requirements/requirements_test.txt
           pip install pytest-azurepipelines
-          cp "C:\actions-runner\opengl32.dll" "testenv\Lib\site-packages\vtkmodules"
           mkdir tmp
           cd tmp
           python -c "import pyaedt; print('Imported pyaedt')"
