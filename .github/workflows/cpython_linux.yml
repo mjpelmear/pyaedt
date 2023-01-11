@@ -46,12 +46,12 @@ jobs:
         run: |
           python -m venv .pyaedt_test_env
           source .pyaedt_test_env/bin/activate
-          python -m pip install pip -U
-          python -m pip install wheel setuptools -U
+          python -m pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org pip -U
+          python -m pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org wheel setuptools -U
           python -c "import sys; print(sys.executable)"
           pip install .
-          pip install -r requirements/requirements_test.txt
-          pip install pytest-azurepipelines
+          pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r requirements/requirements_test.txt
+          pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org pytest-azurepipelines
           mkdir tmp
           cd tmp
           python -c "import pyaedt; print('Imported pyaedt')"
