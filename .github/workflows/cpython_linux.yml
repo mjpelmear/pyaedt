@@ -45,6 +45,8 @@ jobs:
       - name: 'Install pyaedt'
         run: |
           python -m venv .pyaedt_test_env
+          export ANSYSEM_ROOT222=/apps/AnsysEM/v222/Linux64
+          export LD_LIBRARY_PATH=$ANSYSEM_ROOT222/common/mono/Linux64/lib64:$ANSYSEM_ROOT222/Delcross:$LD_LIBRARY_PATH
           source .pyaedt_test_env/bin/activate
           python -m pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org pip -U
           python -m pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org wheel setuptools -U
@@ -58,6 +60,8 @@ jobs:
 
       - name: 'Unit testing'
         run: |
+          export ANSYSEM_ROOT222=/apps/AnsysEM/v222/Linux64
+          export LD_LIBRARY_PATH=$ANSYSEM_ROOT222/common/mono/Linux64/lib64:$ANSYSEM_ROOT222/Delcross:$LD_LIBRARY_PATH
           source .pyaedt_test_env/bin/activate
           pytest -n 6 --dist loadfile -v --cov=pyaedt  --cov-report=xml --junitxml=junit/test-results.xml --cov-report=html _unittest -p no:faulthandler
 
