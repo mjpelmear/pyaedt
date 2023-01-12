@@ -44,6 +44,7 @@ local_path = os.path.dirname(os.path.realpath(__file__))
 from pyaedt import Desktop
 from pyaedt import Edb
 from pyaedt import Hfss
+from pyaedt.desktop import release_desktop
 from pyaedt.generic.filesystem import Scratch
 
 test_project_name = "test_primitives"
@@ -198,14 +199,14 @@ def desktop_init():
     yield
     if not is_ironpython:
         try:
-            _main = sys.modules["__main__"]
-            try:
-                desktop = _main.oDesktop
-                pid = desktop.GetProcessID()
-                os.kill(pid, 9)
-            except:
-                pass
-            # release_desktop(close_projects=False, close_desktop=True)
+            # _main = sys.modules["__main__"]
+            # try:
+            #     desktop = _main.oDesktop
+            #     pid = desktop.GetProcessID()
+            #     os.kill(pid, 9)
+            # except:
+            #     pass
+            release_desktop(close_projects=False, close_desktop=True)
         except:
             pass
 
