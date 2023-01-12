@@ -48,7 +48,7 @@ if not is_ironpython:
 
 
 @pyaedt_function_handler()
-def get_structured_mesh(theta, phi, ff_data):
+def get_structured_mesh(theta, phi, ff_data, qty_str="FarFieldData"):
 
     if ff_data.min() < 0:
         ff_data_renorm = ff_data + np.abs(ff_data.min())
@@ -64,7 +64,7 @@ def get_structured_mesh(theta, phi, ff_data):
 
     mag = np.ndarray.flatten(r_no_renorm, order="F")
     ff_mesh = pv.StructuredGrid(x, y, z)
-    ff_mesh["FarFieldData"] = mag
+    ff_mesh[qty_str] = mag
     return ff_mesh
 
 

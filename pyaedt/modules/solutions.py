@@ -1120,6 +1120,8 @@ class FfdSolutionData(object):
         self.taper = taper
         self.data_dict = {}
         self._init_ffd()
+        self.active_theta = 0
+        self.active_phi = 0
         self._phase_offset = [0] * len(self.all_port_names)
 
     @pyaedt_function_handler()
@@ -1454,7 +1456,8 @@ class FfdSolutionData(object):
 
         c = 299792458
         k = (2 * math.pi * self.frequency) / c
-
+        self.active_theta = theta_scan
+        self.active_phi = phi_scan
         theta_scan = math.radians(theta_scan)
         phi_scan = math.radians(phi_scan)
 
@@ -1665,12 +1668,11 @@ class FfdSolutionData(object):
     def _get_far_field_mesh(self, qty_str="RealizedGain", convert_to_db=True):
         if convert_to_db:
             ff_data = 10 * np.log10(self.all_qtys[qty_str])
-
         else:
             ff_data = self.all_qtys[qty_str]
         theta = np.deg2rad(np.array(self.all_qtys["Theta"]))
         phi = np.deg2rad(np.array(self.all_qtys["Phi"]))
-        self.mesh = get_structured_mesh(theta=theta, phi=phi, ff_data=ff_data)
+        self.mesh = get_structured_mesh(theta=theta, phi=phi, ff_data=ff_data, qty_str=qty_str)
 
     @pyaedt_function_handler()
     def get_lattice_vectors(self):
@@ -1987,12 +1989,12 @@ class FfdSolutionData(object):
         if is_antenna_array:
             for each in data["Element_Location"]:
                 translated_mesh = duplicate_mesh.copy()
-                offset_xyz = data["Element_Location"][each] * sf
-                if np.abs(2 * offset_xyz[0]) > xmax:  # assume array is centere, factor of 2
+                offset_xyz = data["Element_Location"][each] / sf
+                if np.abs(2 * offset_xyz[0]) > xmax:  # assume array is centered, factor of 2
                     xmax = offset_xyz[0] * 2
-                if np.abs(2 * offset_xyz[1]) > ymax:  # assume array is centere, factor of 2
+                if np.abs(2 * offset_xyz[1]) > ymax:  # assume array is centered, factor of 2
                     ymax = offset_xyz[1] * 2
-                translated_mesh.translate(offset_xyz, inplace=True)
+                translated_mesh = translated_mesh.translate(offset_xyz, inplace=True)
                 if new_meshes:
                     new_meshes += translated_mesh
                 else:
@@ -2012,6 +2014,10 @@ class FfdSolutionData(object):
         rotation=None,
         export_image_path=None,
         show=True,
+        phi_scan=0,
+        theta_scan=0,
+        scalar_range_min=None,
+        scalar_range_max=None,
     ):
         """Create a 3d Polar Plot of Geometry with Radiation Pattern in Pyvista.
 
@@ -2030,6 +2036,14 @@ class FfdSolutionData(object):
             Default is [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]].
         show : bool, optional
             Either if the plot has to be shown or not. Default is `True`.
+        phi_scan : float, int, optional
+            Phi Scan Angle in degree. Default `0`.
+        theta_scan : float, int, optional
+            Theta Scan Angle in degree. Default `0`.
+        scalar_range_min : float, int, optional
+            Field Scalar Range min value. Default `None` which will auto-compute.
+        scalar_range_max : float, int, optional
+            Field Scalar Range max value. Default `None` which will auto-compute.
 
         Returns
         -------
@@ -2043,19 +2057,24 @@ class FfdSolutionData(object):
             rotation = np.eye(3)
         elif isinstance(rotation, (list, tuple)):
             rotation = np.array(rotation)
-        self.beamform(phi_scan=0, theta_scan=0)
-        plot_min = -40
+        self.beamform(phi_scan=phi_scan, theta_scan=theta_scan)
         self._get_far_field_mesh(qty_str=qty_str, convert_to_db=convert_to_db)
 
         # plot everything together
         rotation_euler = self._rotation_to_euler_angles(rotation) * 180 / np.pi
         p = pv.Plotter(notebook=is_notebook(), off_screen=not show)
-        uf = UpdateBeamForm(self)
+        uf = UpdateBeamForm(
+            self, qty_str=qty_str, convert_to_db=convert_to_db, phi_scan=phi_scan, theta_scan=theta_scan
+        )
+        if not scalar_range_max:
+            scalar_range_max = max(uf.output.bounds)
+        if not scalar_range_min:
+            scalar_range_min = min(uf.output.bounds)
 
         p.add_slider_widget(
             uf.update_phi,
             rng=[0, 360],
-            value=0,
+            value=phi_scan,
             title="Phi",
             pointa=(0.55, 0.1),
             pointb=(0.74, 0.1),
@@ -2066,7 +2085,7 @@ class FfdSolutionData(object):
         p.add_slider_widget(
             uf.update_theta,
             rng=[-180, 180],
-            value=0,
+            value=theta_scan,
             title="Theta",
             pointa=(0.77, 0.1),
             pointb=(0.98, 0.1),
@@ -2094,8 +2113,14 @@ class FfdSolutionData(object):
         # ff_mesh_inst = p.add_mesh(uf.output,smooth_shading=True,cmap="jet",scalar_bar_args=sargs,opacity=0.5)
         # not sure why, but smooth_shading causes this to not update
 
-        ff_mesh_inst = p.add_mesh(uf.output, cmap="jet", clim=[plot_min, self.max_gain], scalar_bar_args=sargs)
+        ff_mesh_inst = p.add_mesh(
+            uf.output, cmap="jet", clim=[scalar_range_min, scalar_range_max], scalar_bar_args=sargs
+        )
         cad_mesh = self._get_geometry()
+        if cad_mesh:
+            translate_vector = [j - i for i, j in zip(cad_mesh.center, ff_mesh_inst.center)]
+            translate_vector[2] = -ff_mesh_inst.center[2]
+            cad_mesh = cad_mesh.translate(translate_vector, inplace=True)
         if cad_mesh:
 
             def toggle_vis_ff(flag):
@@ -2114,7 +2139,7 @@ class FfdSolutionData(object):
             p.add_checkbox_button_widget(toggle_vis_ff, value=True, size=30)
             p.add_text("Show Far Fields", position=(70, 25), color="white", font_size=10)
 
-            slider_max = int(np.ceil(self.all_max / 2 / self.max_gain))
+            slider_max = int(np.ceil(self.all_max / 2 / max(ff_mesh_inst.bounds)))
             if slider_max > 0:
                 slider_min = 0
                 value = slider_max / 3
@@ -2189,7 +2214,7 @@ class FfdSolutionData(object):
         self.beamform_2beams(phi_scan1=0, theta_scan1=0, phi_scan2=0, theta_scan2=0)
         self._get_far_field_mesh(qty_str=qty_str, convert_to_db=convert_to_db)
 
-        uf = Update2BeamForms(self, max_value=self.max_gain)
+        uf = Update2BeamForms(self, max_value=self.max_gain, qty_str=qty_str, convert_to_db=convert_to_db)
         rotation_euler = self._rotation_to_euler_angles(rotation) * 180 / np.pi
 
         p = pv.Plotter(notebook=is_notebook(), off_screen=False, window_size=[1024, 768])
@@ -2302,14 +2327,15 @@ class FfdSolutionData(object):
 
 
 class UpdateBeamForm:
-    def __init__(self, ff):
+    def __init__(self, ff, qty_str="RealizedGain", convert_to_db=True, phi_scan=0, theta_scan=0):
         self.output = ff.mesh
-        self._phi = 0
-        self._theta = 0
+        self._phi = phi_scan
+        self._theta = theta_scan
         # default parameters
         self.ff = ff
-        self.qty_str = "RealizedGain"
-        self.convert_to_db = True
+        self.qty_str = qty_str
+        self.convert_to_db = convert_to_db
+        self._update_both()
 
     def _update_both(self):
         self.ff.beamform(phi_scan=self._phi, theta_scan=self._theta)
@@ -2332,26 +2358,27 @@ class UpdateBeamForm:
 
 
 class Update2BeamForms:
-    def __init__(self, ff, max_value=1):
+    def __init__(self, ff, max_value=1, qty_str="RealizedGain", convert_to_db=True, phi1=0, theta1=0, phi2=0, theta2=0):
         self.max_value = max_value
         self.output = ff.mesh
-        self._phi1 = 0
-        self._theta1 = 0
-        self._phi2 = 0
-        self._theta2 = 0
+        self._phi1 = phi1
+        self._theta1 = theta1
+        self._phi2 = phi2
+        self._theta2 = theta2
         # default parameters
         self.ff = ff
-        self.qty_str = "RealizedGain"
-        self.convert_to_db = True
+        self.qty_str = qty_str
+        self.convert_to_db = convert_to_db
+        self._update_both()
 
     def _update_both(self):
         self.ff.beamform_2beams(
             phi_scan1=self._phi1, theta_scan1=self._theta1, phi_scan2=self._phi2, theta_scan2=self._theta2
         )
         self.ff._get_far_field_mesh(self.qty_str, self.convert_to_db)
-        current_max = np.max(self.ff.mesh["FarFieldData"])
+        current_max = np.max(self.ff.mesh[self.qty_str])
         delta = self.max_value - current_max
-        self.ff.mesh["FarFieldData"] = self.ff.mesh["FarFieldData"] - delta
+        self.ff.mesh[self.qty_str] = self.ff.mesh[self.qty_str] - delta
         self.output.overwrite(self.ff.mesh)
         return
 
