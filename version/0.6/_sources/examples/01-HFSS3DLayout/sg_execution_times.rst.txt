@@ -1,0 +1,19 @@
+
+:orphan:
+
+.. _sphx_glr_examples_01-HFSS3DLayout_sg_execution_times:
+
+
+Computation times
+=================
+**10:38.968** total execution time for **examples_01-HFSS3DLayout** files:
+
++----------------------------------------------------------------------------------------+-----------+--------+
+| :ref:`sphx_glr_examples_01-HFSS3DLayout_Hfss3DComponent.py` (``Hfss3DComponent.py``)   | 05:34.874 | 0.0 MB |
++----------------------------------------------------------------------------------------+-----------+--------+
+| :ref:`sphx_glr_examples_01-HFSS3DLayout_HFSS3DLayout_Via.py` (``HFSS3DLayout_Via.py``) | 02:44.655 | 0.0 MB |
++----------------------------------------------------------------------------------------+-----------+--------+
+| :ref:`sphx_glr_examples_01-HFSS3DLayout_Dcir_in_3DLayout.py` (``Dcir_in_3DLayout.py``) | 01:46.668 | 0.0 MB |
++----------------------------------------------------------------------------------------+-----------+--------+
+| :ref:`sphx_glr_examples_01-HFSS3DLayout_EDB_in_3DLayout.py` (``EDB_in_3DLayout.py``)   | 00:32.771 | 0.0 MB |
++----------------------------------------------------------------------------------------+-----------+--------+
